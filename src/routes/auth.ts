@@ -1,10 +1,9 @@
 import { Router } from "express";
 import bcrypt from "bcrypt";
-import { PrismaClient } from "@prisma/client";
+import prisma from "../lib/prisma";
 import jwt from "jsonwebtoken";
 
 const router = Router();
-const prisma = new PrismaClient({ datasources: { db: { url: process.env.DATABASE_URL } } });
 
 const JWT_SECRET = process.env.NEXTAUTH_SECRET || "default_secret";
 

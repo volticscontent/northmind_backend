@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { PrismaClient } from "@prisma/client";
+import prisma from "../lib/prisma";
 import { isAdmin } from "../middleware/auth";
+import { slugify } from "../utils/slugify";
 
 const router = Router();
-const prisma = new PrismaClient({ datasources: { db: { url: process.env.DATABASE_URL } } });
 
 // Listar todos os produtos (raw, para admin)
 router.get("/raw", isAdmin, async (req, res) => {
@@ -11,7 +11,14 @@ router.get("/raw", isAdmin, async (req, res) => {
     const products = await prisma.produto.findMany({
       orderBy: { createdAt: "desc" },
     });
-    return res.json(products);
+    
+    // Injetar fallback de foto para o Admin ver tudo com imagem
+    const mapped = products.map(p => ({
+      ...p,
+      fotoPrincipal: p.fotoPrincipal || (p.fotos && p.fotos.length > 0 ? p.fotos[0] : null)
+    }));
+
+    return res.json(mapped);
   } catch (error) {
     return res.status(500).json({ error: "Internal Error" });
   }
@@ -31,7 +38,11 @@ router.get("/", async (req, res) => {
       price: p.preco,
       originalPrice: p.precoOriginal || 0,
       collection: p.collection,
+      fotoPrincipal: p.fotoPrincipal || (p.fotos && p.fotos.length > 0 ? p.fotos[0] : null),
       images: p.fotos,
+      videos: p.videos,
+      totalAvaliacoes: p.totalAvaliacoes,
+      mediaAvaliacoes: p.mediaAvaliacoes
     }));
     return res.json(mapped);
   } catch (error) {
@@ -56,7 +67,11 @@ router.get("/handle/:handle", async (req, res) => {
       price: p.preco,
       originalPrice: p.precoOriginal || 0,
       collection: p.collection,
+      fotoPrincipal: p.fotoPrincipal || (p.fotos && p.fotos.length > 0 ? p.fotos[0] : null),
       images: p.fotos,
+      videos: p.videos,
+      totalAvaliacoes: p.totalAvaliacoes,
+      mediaAvaliacoes: p.mediaAvaliacoes
     });
   } catch (error) {
     return res.status(500).json({ error: "Internal Error" });
@@ -90,30 +105,7 @@ router.get("/collection/:collection", async (req, res) => {
   }
 });
 
-// Listar coleções
-router.get("/collections", async (req, res) => {
-  try {
-    const products = await prisma.produto.findMany({
-      orderBy: { createdAt: "asc" },
-    });
 
-    const collectionsMap = new Map();
-    products.forEach((p) => {
-      if (!collectionsMap.has(p.collection)) {
-        collectionsMap.set(p.collection, {
-          name: p.collection,
-          handle: p.collection.toLowerCase().replace(/\s+/g, "-"),
-          image: p.fotos[0],
-          description: `Explore our exclusive ${p.collection} pieces, crafted for the modern individual with a respect for heritage.`,
-        });
-      }
-    });
-
-    return res.json(Array.from(collectionsMap.values()));
-  } catch (error) {
-    return res.status(500).json({ error: "Internal Error" });
-  }
-});
 
 // Buscar por IDs (para o dashboard de customer)
 router.post("/by-ids", async (req, res) => {
@@ -132,13 +124,20 @@ router.post("/by-ids", async (req, res) => {
 // ADMIN: Upsert produto
 router.post("/upsert", isAdmin, async (req, res) => {
   try {
-    const { id, ...productData } = req.body;
+    const { id, nome, handle, ...productData } = req.body;
+    const finalHandle = slugify(nome);
+    
     if (id) {
-      await prisma.produto.update({ where: { id }, data: productData });
+      await prisma.produto.update({ 
+        where: { id }, 
+        data: { ...productData, nome, handle: finalHandle } 
+      });
     } else {
-      await prisma.produto.create({ data: productData });
+      await prisma.produto.create({ 
+        data: { ...productData, nome, handle: finalHandle } 
+      });
     }
-    return res.json({ success: true });
+    return res.json({ success: true, handle: finalHandle });
   } catch (error) {
     console.error("UPSERT_PRODUCT_ERROR", error);
     return res.status(500).json({ error: "Internal Error" });

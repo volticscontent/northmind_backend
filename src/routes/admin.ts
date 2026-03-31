@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { PrismaClient } from "@prisma/client";
-import { isAdmin } from "../middleware/auth";
+import prisma from "../lib/prisma";
+import { isAdmin, isSelfOrAdmin } from "../middleware/auth";
 
 const router = Router();
-const prisma = new PrismaClient({ datasources: { db: { url: process.env.DATABASE_URL } } });
+
 
 // Admin Stats
 router.get("/stats", isAdmin, async (req, res) => {
@@ -32,8 +32,8 @@ router.get("/stats", isAdmin, async (req, res) => {
   }
 });
 
-// Customer dashboard data
-router.get("/customer/:email", isAdmin, async (req, res) => {
+// Customer dashboard data - Allow self or admin
+router.get("/customer/:email", isSelfOrAdmin, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { email: req.params.email },
@@ -49,15 +49,22 @@ router.get("/customer/:email", isAdmin, async (req, res) => {
     const uniqueProductIds = Array.from(new Set(user.pedidos.flatMap(p => p.produtosIds)));
     const products = await prisma.produto.findMany({
       where: { id: { in: uniqueProductIds } },
-      select: { id: true, nome: true, preco: true, fotos: true },
+      select: { id: true, nome: true, preco: true, fotos: true, fotoPrincipal: true },
     });
     const productsDict = products.reduce((acc: any, p) => {
-      acc[p.id] = p;
+      acc[p.id] = {
+        id: p.id,
+        title: p.nome,
+        price: p.preco,
+        images: p.fotos,
+        fotoPrincipal: p.fotoPrincipal || (p.fotos && p.fotos.length > 0 ? p.fotos[0] : null)
+      };
       return acc;
     }, {});
 
     return res.json({ user: userSafe, productsDict });
   } catch (error) {
+    console.error("GET_CUSTOMER_DASHBOARD_ERROR", error);
     return res.status(500).json({ error: "Internal Error" });
   }
 });

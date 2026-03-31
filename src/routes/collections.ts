@@ -1,12 +1,12 @@
 import { Router } from "express";
-import { PrismaClient } from "@prisma/client";
+import prisma from "../lib/prisma";
 import { isAdmin } from "../middleware/auth"; // Importa o middleware
+import { slugify } from "../utils/slugify";
 
 const router = Router();
-const prisma = new PrismaClient({ datasources: { db: { url: process.env.DATABASE_URL } } });
 
-// Listar todas as coleções
-router.get("/", isAdmin, async (req, res) => {
+// Listar todas as coleções (Público)
+router.get("/", async (req, res) => {
   console.log("Requisição GET /api/collections recebida.");
   try {
     const collections = await prisma.collection.findMany({
@@ -28,8 +28,8 @@ router.get("/", isAdmin, async (req, res) => {
 // Upsert (criar ou atualizar) uma coleção
 router.post("/upsert", isAdmin, async (req, res) => {
   try {
-    const { id, name, handle, description, image, productIds } = req.body;
-    const slug = handle.toLowerCase().replace(/\s+/g, '-');
+    const { id, name, description, image, productIds } = req.body;
+    const slug = slugify(name);
     const data = { name, handle: slug, description, image };
 
     let collection;

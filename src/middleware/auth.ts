@@ -38,3 +38,23 @@ export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
     return res.status(401).json({ error: "Invalid or expired token" });
   }
 };
+
+export const isSelfOrAdmin = (req: Request, res: Response, next: NextFunction) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.status(401).json({ error: "No token" });
+
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded: any = jwt.verify(token, JWT_SECRET);
+    const requestedEmail = req.params.email;
+
+    if (decoded.email === requestedEmail || decoded.type === "ADMIN") {
+      (req as any).user = decoded;
+      return next();
+    }
+
+    return res.status(403).json({ error: "Forbidden: Not authorized" });
+  } catch (error) {
+    return res.status(401).json({ error: "Invalid or expired token" });
+  }
+};

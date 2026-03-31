@@ -1,12 +1,11 @@
-import express, { Request, Response } from 'express';
-import cors from 'cors';
 import dotenv from 'dotenv';
-import { PrismaClient } from '@prisma/client';
-
 dotenv.config();
 
+import express, { Request, Response } from 'express';
+import cors from 'cors';
+import prisma from './lib/prisma';
+
 const app = express();
-const prisma = new PrismaClient({ datasources: { db: { url: process.env.DATABASE_URL } } });
 
 import paymentRoutes from './routes/payment';
 import orderRoutes from './routes/orders';
@@ -41,5 +40,9 @@ app.get('/health', async (req: Request, res: Response) => {
 const PORT = process.env.PORT || 3001;
 
 app.listen(PORT, () => {
-  console.log(`Backend server rodando na porta ${PORT}`);
+  console.log(`--------------------------------------------------`);
+  console.log(`[BACKEND] North Mind Server Started!`);
+  console.log(`[BACKEND] Port: ${PORT}`);
+  console.log(`[BACKEND] Database: ${process.env.DATABASE_URL ? "CONNECTED" : "MISSING DATABASE_URL"}`);
+  console.log(`--------------------------------------------------`);
 });
