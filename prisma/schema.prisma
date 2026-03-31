@@ -108,6 +108,10 @@ model Produto {
   fotoPrincipal   String?
   mediaAvaliacoes Float        @default(5.0)
   totalAvaliacoes Int          @default(0)
+  publicado       Boolean      @default(true)
+  opcoesTamanho   String[]     @default(["S", "M", "L", "XL", "XXL"])
+  opcoesCor       Json?        // [{ name: "Black", hex: "#000000" }]
+  highlights      Json?        // [{ icon: "Shield", title: "Warranty", text: "..." }]
   videos          String[]
   comentarios     Comentario[]
 
