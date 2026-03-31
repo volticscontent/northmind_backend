@@ -1,0 +1,14 @@
+[providers]
+node = "20"
+
+[phases.setup]
+nixPkgs = ["...", "openssl"]
+
+[phases.install]
+cmds = ["npm install"]
+
+[phases.build]
+cmds = ["npx prisma generate", "npx tsc"]
+
+[start]
+cmd = "node dist/index.js"

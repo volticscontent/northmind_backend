@@ -1,0 +1,74 @@
+{
+  "products": [
+    {
+      "id": "1",
+      "handle": "the-gorham-down-jacket",
+      "title": "The Gorham Down Jacket",
+      "description": "Premium down jacket for maximum warmth and style.",
+      "price": 59.00,
+      "originalPrice": 196.00,
+      "collection": "Jackets",
+      "images": ["/assets/products/jacket-1.png"]
+    },
+    {
+      "id": "2",
+      "handle": "mens-1996-retro-nuptse-jacket",
+      "title": "Men's 1996 Retro Nuptse Jacket",
+      "description": "Classic retro puffer jacket with water-resistant finish.",
+      "price": 39.00,
+      "originalPrice": 78.00,
+      "collection": "Jackets",
+      "images": ["/assets/products/jacket-2.png"]
+    },
+    {
+      "id": "3",
+      "handle": "the-gorham-glossed-down-jacket",
+      "title": "The Gorham Glossed Down Jacket",
+      "description": "Glossy finish down jacket with premium insulation.",
+      "price": 59.00,
+      "originalPrice": 149.00,
+      "collection": "Jackets",
+      "images": ["/assets/products/jacket-3.png"]
+    },
+    {
+      "id": "4",
+      "handle": "the-wyoming-ripstop-down-jacket",
+      "title": "The Wyoming Ripstop Down Jacket",
+      "description": "Durable ripstop down jacket for outdoor adventures.",
+      "price": 79.00,
+      "originalPrice": 179.00,
+      "collection": "Jackets",
+      "images": ["/assets/products/jacket-4.png"]
+    },
+    {
+      "id": "5",
+      "handle": "double-knit-quarter-zip-pullover",
+      "title": "Double-Knit Quarter-Zip Pullover",
+      "description": "Casual quarter-zip pullover for versatile styling.",
+      "price": 39.00,
+      "originalPrice": 78.00,
+      "collection": "Silent Warmth",
+      "images": ["/assets/products/sw-1.png"]
+    },
+    {
+      "id": "6",
+      "handle": "cable-knit-quarter-zip-jumper",
+      "title": "Cable-Knit Quarter-Zip Jumper",
+      "description": "Classic cable-knit jumper with a modern touch.",
+      "price": 39.00,
+      "originalPrice": 78.00,
+      "collection": "Silent Warmth",
+      "images": ["/assets/products/sw-2.png"]
+    },
+    {
+      "id": "7",
+      "handle": "cable-knit-wool-cashmere-jumper",
+      "title": "Cable-Knit Wool-Cashmere Jumper",
+      "description": "Ultra-soft wool and cashmere blend jumper.",
+      "price": 59.00,
+      "originalPrice": 78.00,
+      "collection": "Silent Warmth",
+      "images": ["/assets/products/sw-3.png"]
+    }
+  ]
+}
