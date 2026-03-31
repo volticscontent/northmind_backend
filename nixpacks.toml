@@ -1,8 +1,8 @@
-[providers]
-node = "20"
+providers = ["node"]
 
 [phases.setup]
 nixPkgs = ["...", "openssl"]
+nixpkgsArchive = "bf972dc380f36a3bf83db052380e55f0a08e77f2"
 
 [phases.install]
 cmds = ["npm install"]
