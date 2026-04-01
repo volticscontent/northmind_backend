@@ -1,4 +1,4 @@
-import { defineCliConfig } from 'prisma/cli';
+                                                                              import { defineCliConfig } from 'prisma/cli';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import 'dotenv/config';

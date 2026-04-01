@@ -81,4 +81,22 @@ router.delete("/:id", isAdmin, async (req, res) => {
   }
 });
 
+// Atualizar status de todos os produtos de uma coleção (Draft/Live)
+router.post("/bulk-status", isAdmin, async (req, res) => {
+  try {
+    const { collectionName, publicado } = req.body;
+    if (!collectionName) return res.status(400).json({ error: "Collection name required" });
+
+    await prisma.produto.updateMany({
+      where: { collection: collectionName },
+      data: { publicado }
+    });
+
+    return res.json({ success: true });
+  } catch (error) {
+    console.error("COLLECTION_BULK_STATUS_ERROR", error);
+    return res.status(500).json({ error: "Internal Error" });
+  }
+});
+
 export default router;

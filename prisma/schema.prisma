@@ -112,8 +112,15 @@ model Produto {
   opcoesTamanho   String[]     @default(["S", "M", "L", "XL", "XXL"])
   opcoesCor       Json?        // [{ name: "Black", hex: "#000000" }]
   highlights      Json?        // [{ icon: "Shield", title: "Warranty", text: "..." }]
+  materiais       Json?        // [{ item: "Cotton", percentage: "100%" }]
+  variantes       Json?        // [{ label: "50ml", price: 49.99, originalPrice: 65.00 }]
+  guiaTamanho     Json?        // { table: [...], note: "..." }
+  detalhesModelo  String?
+  instrucoesCuidado String?
+  especificacoes  String[]
   videos          String[]
   comentarios     Comentario[]
+  tipo            String       @default("ROUPA") // ["ROUPA", "PERFUME"]
 
   @@schema("public")
 }
@@ -122,6 +129,8 @@ model Comentario {
   id        String   @id @default(cuid())
   rating    Int      @default(5)
   texto     String
+  fotos     String[]
+  videoUrl  String?
   createdAt DateTime @default(now())
   produtoId String
   userId    String

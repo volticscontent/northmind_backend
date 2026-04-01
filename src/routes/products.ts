@@ -51,7 +51,9 @@ router.get("/", async (req, res) => {
       publicado: p.publicado,
       opcoesTamanho: p.opcoesTamanho,
       opcoesCor: p.opcoesCor,
-      highlights: p.highlights
+      highlights: p.highlights,
+      especificacoes: p.especificacoes,
+      variantes: (p as any).variantes
     }));
     return res.json(mapped);
   } catch (error) {
@@ -83,7 +85,16 @@ router.get("/handle/:handle", async (req, res) => {
       images: p.fotos,
       videos: p.videos,
       totalAvaliacoes: p.totalAvaliacoes,
-      mediaAvaliacoes: p.mediaAvaliacoes
+      mediaAvaliacoes: p.mediaAvaliacoes,
+      opcoesTamanho: p.opcoesTamanho,
+      opcoesCor: p.opcoesCor,
+      highlights: p.highlights,
+      materiais: p.materiais,
+      guiaTamanho: p.guiaTamanho,
+      detalhesModelo: p.detalhesModelo,
+      instrucoesCuidado: p.instrucoesCuidado,
+      especificacoes: p.especificacoes,
+      tipo: p.tipo || "ROUPA"
     });
   } catch (error) {
     return res.status(500).json({ error: "Internal Error" });
@@ -110,6 +121,7 @@ router.get("/collection/:collection", async (req, res) => {
       originalPrice: p.precoOriginal || 0,
       collection: p.collection,
       images: p.fotos,
+      tipo: p.tipo || "ROUPA"
     }));
     return res.json(mapped);
   } catch (error) {
@@ -149,14 +161,21 @@ router.get("/admin/:id", isAdmin, async (req, res) => {
 // ADMIN: Upsert produto
 router.post("/upsert", isAdmin, async (req, res) => {
   try {
-    const { id, nome, handle, ...productData } = req.body;
-    const finalHandle = handle || slugify(nome);
+    const { id, nome, handle, tipo, ...productData } = req.body;
     
-    const data = {
+    const data: any = {
       ...productData,
       nome,
-      handle: finalHandle,
+      tipo: tipo || "ROUPA",
     };
+
+    // ONLY generate handle if it's a NEW product AND handle is NOT provided
+    if (!id && !handle) {
+      data.handle = slugify(nome);
+    } else if (handle) {
+      // Allow manual handle update if explicitly provided
+      data.handle = handle;
+    }
 
     if (id) {
       await prisma.produto.update({ 
@@ -168,7 +187,7 @@ router.post("/upsert", isAdmin, async (req, res) => {
         data
       });
     }
-    return res.json({ success: true, handle: finalHandle });
+    return res.json({ success: true, handle: data.handle });
   } catch (error) {
     console.error("UPSERT_PRODUCT_ERROR", error);
     return res.status(500).json({ error: "Internal Error" });
