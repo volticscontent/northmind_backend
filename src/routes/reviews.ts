@@ -3,6 +3,26 @@ import prisma from "../lib/prisma";
 
 const router = Router();
 
+async function updateProductRating(produtoId: string) {
+  const reviews = await prisma.comentario.findMany({
+    where: { produtoId },
+    select: { rating: true },
+  });
+
+  const totalAvaliacoes = reviews.length;
+  const mediaAvaliacoes = totalAvaliacoes > 0
+    ? reviews.reduce((acc, r) => acc + r.rating, 0) / totalAvaliacoes
+    : 5.0; // Default to 5.0 if no reviews
+
+  await prisma.produto.update({
+    where: { id: produtoId },
+    data: {
+      totalAvaliacoes,
+      mediaAvaliacoes,
+    },
+  });
+}
+
 // Buscar reviews de um produto
 router.get("/product/:produtoId", async (req, res) => {
   try {
@@ -54,6 +74,10 @@ router.post("/", async (req, res) => {
         videoUrl: videoUrl || null,
       },
     });
+
+    // Update product stats
+    await updateProductRating(produtoId);
+
     return res.json(review);
   } catch (error) {
     return res.status(500).json({ error: "Internal Error" });
@@ -65,7 +89,7 @@ router.get("/all", async (req, res) => {
   try {
     const reviews = await prisma.comentario.findMany({
       orderBy: { createdAt: "desc" },
-      include: { produto: { select: { nome: true } } }
+      include: { produto: { select: { id: true, nome: true } } }
     });
     return res.json(reviews);
   } catch (error) {
@@ -86,6 +110,10 @@ router.put("/:id", async (req, res) => {
         videoUrl: videoUrl || null,
       },
     });
+
+    // Update product stats
+    await updateProductRating(review.produtoId);
+
     return res.json(review);
   } catch (error) {
     return res.status(500).json({ error: "Internal Error" });
@@ -95,13 +123,22 @@ router.put("/:id", async (req, res) => {
 // Deletar review (Admin)
 router.delete("/:id", async (req, res) => {
   try {
+    const review = await prisma.comentario.findUnique({ where: { id: req.params.id } });
+    if (!review) return res.status(404).json({ error: "Review not found" });
+
     await prisma.comentario.delete({
       where: { id: req.params.id },
     });
+
+    // Update product stats
+    await updateProductRating(review.produtoId);
+
     return res.status(200).json({ message: "Deleted" });
   } catch (error) {
     return res.status(500).json({ error: "Internal Error" });
   }
 });
+
+export default router;
 
 export default router;

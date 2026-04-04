@@ -1,107 +1,67 @@
 import { Router } from "express";
 import prisma from "../lib/prisma";
 import { isAdmin } from "../middleware/auth";
-import { slugify } from "../utils/slugify";
 
 const router = Router();
 
-// Listar todos os produtos (raw, para admin)
-router.get("/raw", isAdmin, async (req, res) => {
-  try {
-    const products = await prisma.produto.findMany({
-      orderBy: { createdAt: "desc" },
-    });
-    
-    // Injetar fallback de foto e garantir que todos os campos dinâmicos sejam retornados
-    const mapped = products.map(p => ({
-      ...p,
-      fotoPrincipal: p.fotoPrincipal || (p.fotos && p.fotos.length > 0 ? p.fotos[0] : null),
-      publicado: p.publicado ?? true,
-      opcoesTamanho: p.opcoesTamanho || ["S", "M", "L", "XL", "XXL"],
-      opcoesCor: p.opcoesCor || [],
-      highlights: p.highlights || []
-    }));
-
-    return res.json(mapped);
-  } catch (error) {
-    return res.status(500).json({ error: "Internal Error" });
-  }
+// Helper para mapear produto do banco para o padrão de UX
+// Centraliza toda a consistência de dados (avaliações, preços, mídias)
+const mapProduct = (p: any) => ({
+  id: p.id,
+  handle: p.handle,
+  title: p.nome,
+  description: p.descricao,
+  price: Number(p.preco) || 0,
+  originalPrice: Number(p.precoOriginal) || 0,
+  collection: p.collection,
+  fotoPrincipal: p.fotoPrincipal || (p.fotos && p.fotos.length > 0 ? p.fotos[0] : null),
+  images: p.fotos || [],
+  videos: p.videos || [],
+  totalAvaliacoes: Number(p.totalAvaliacoes) || 0,
+  mediaAvaliacoes: Number(p.mediaAvaliacoes) || 5.0,
+  opcoesTamanho: p.opcoesTamanho || [],
+  opcoesCor: p.opcoesCor || [],
+  highlights: p.highlights || [],
+  materiais: p.materiais || [],
+  guiaTamanho: p.guiaTamanho || null,
+  detalhesModelo: p.detalhesModelo || null,
+  instrucoesCuidado: p.instrucoesCuidado || null,
+  especificacoes: p.especificacoes || [],
+  variantes: p.variantes || [],
+  tipo: p.tipo || "ROUPA"
 });
 
-// Listar todos os produtos (mapeado, para frontend - APENAS PUBLICADOS)
+// Buscar todos os produtos (público) - Usado pela vitrine geral
 router.get("/", async (req, res) => {
   try {
     const products = await prisma.produto.findMany({
-      where: { publicado: true },
       orderBy: { createdAt: "desc" },
     });
-    const mapped = products.map((p) => ({
-      id: p.id,
-      handle: p.handle,
-      title: p.nome,
-      description: p.descricao,
-      price: p.preco,
-      originalPrice: p.precoOriginal || 0,
-      collection: p.collection,
-      fotoPrincipal: p.fotoPrincipal || (p.fotos && p.fotos.length > 0 ? p.fotos[0] : null),
-      images: p.fotos,
-      videos: p.videos,
-      totalAvaliacoes: p.totalAvaliacoes,
-      mediaAvaliacoes: p.mediaAvaliacoes,
-      publicado: p.publicado,
-      opcoesTamanho: p.opcoesTamanho,
-      opcoesCor: p.opcoesCor,
-      highlights: p.highlights,
-      especificacoes: p.especificacoes,
-      variantes: (p as any).variantes
-    }));
-    return res.json(mapped);
+    return res.json(products.map(mapProduct));
   } catch (error) {
-    console.error("GET_PRODUCTS_ERROR", error);
+    console.error("[BACKEND] GET / Error:", error);
     return res.status(500).json({ error: "Internal Error" });
   }
 });
 
-// Buscar produto por handle (APENAS SE PUBLICADO)
+// Buscar produto por handle - Usado pela página de detalhes
 router.get("/handle/:handle", async (req, res) => {
   try {
     const p = await prisma.produto.findFirst({
-      where: { 
+      where: {
         handle: req.params.handle,
-        publicado: true
       },
     });
-    if (!p) return res.status(404).json({ error: "Product not found" });
 
-    return res.json({
-      id: p.id,
-      handle: p.handle,
-      title: p.nome,
-      description: p.descricao,
-      price: p.preco,
-      originalPrice: p.precoOriginal || 0,
-      collection: p.collection,
-      fotoPrincipal: p.fotoPrincipal || (p.fotos && p.fotos.length > 0 ? p.fotos[0] : null),
-      images: p.fotos,
-      videos: p.videos,
-      totalAvaliacoes: p.totalAvaliacoes,
-      mediaAvaliacoes: p.mediaAvaliacoes,
-      opcoesTamanho: p.opcoesTamanho,
-      opcoesCor: p.opcoesCor,
-      highlights: p.highlights,
-      materiais: p.materiais,
-      guiaTamanho: p.guiaTamanho,
-      detalhesModelo: p.detalhesModelo,
-      instrucoesCuidado: p.instrucoesCuidado,
-      especificacoes: p.especificacoes,
-      tipo: p.tipo || "ROUPA"
-    });
+    if (!p) return res.status(404).json({ error: "Product not found" });
+    return res.json(mapProduct(p));
   } catch (error) {
+    console.error("[BACKEND] GET /handle Error:", error);
     return res.status(500).json({ error: "Internal Error" });
   }
 });
 
-// Buscar produtos por coleção
+// Buscar produtos por coleção - Usado pelos carrosséis da Home e vitrines de categoria
 router.get("/collection/:collection", async (req, res) => {
   try {
     const products = await prisma.produto.findMany({
@@ -111,48 +71,23 @@ router.get("/collection/:collection", async (req, res) => {
           mode: "insensitive",
         },
       },
+      orderBy: { createdAt: "desc" },
     });
-    const mapped = products.map((p) => ({
-      id: p.id,
-      handle: p.handle,
-      title: p.nome,
-      description: p.descricao,
-      price: p.preco,
-      originalPrice: p.precoOriginal || 0,
-      collection: p.collection,
-      images: p.fotos,
-      tipo: p.tipo || "ROUPA"
-    }));
-    return res.json(mapped);
+    console.log(`[BACKEND] Filtering products for collection: ${req.params.collection} (${products.length} found)`);
+    return res.json(products.map(mapProduct));
   } catch (error) {
+    console.error("[BACKEND] GET /collection Error:", error);
     return res.status(500).json({ error: "Internal Error" });
   }
 });
 
-
-
-// Buscar por IDs (para o dashboard de customer)
-router.post("/by-ids", async (req, res) => {
+// ADMIN: Listar produtos RAW (Sem mapeamento de UX)
+router.get("/raw", isAdmin, async (req, res) => {
   try {
-    const { ids } = req.body;
     const products = await prisma.produto.findMany({
-      where: { id: { in: ids } },
-      select: { id: true, nome: true, preco: true, fotos: true },
+      orderBy: { createdAt: "desc" },
     });
     return res.json(products);
-  } catch (error) {
-    return res.status(500).json({ error: "Internal Error" });
-  }
-});
-
-// ADMIN: Buscar produto por ID (Mesmo se não publicado)
-router.get("/admin/:id", isAdmin, async (req, res) => {
-  try {
-    const p = await prisma.produto.findUnique({
-      where: { id: req.params.id },
-    });
-    if (!p) return res.status(404).json({ error: "Product not found" });
-    return res.json(p);
   } catch (error) {
     return res.status(500).json({ error: "Internal Error" });
   }
@@ -161,19 +96,31 @@ router.get("/admin/:id", isAdmin, async (req, res) => {
 // ADMIN: Upsert produto
 router.post("/upsert", isAdmin, async (req, res) => {
   try {
-    const { id, nome, handle, tipo, ...productData } = req.body;
+    const { id, nome, handle, descricao, preco, precoOriginal, collection, fotoPrincipal, fotos, videos, opcoesTamanho, opcoesCor, variantes, tipo, highlights, materiais, guiaTamanho, detalhesModelo, instrucoesCuidado, especificacoes } = req.body;
     
-    const data: any = {
-      ...productData,
+    const data = {
       nome,
-      tipo: tipo || "ROUPA",
+      handle: handle || nome?.toLowerCase().replace(/ /g, "-").replace(/[^\w-]+/g, ""),
+      descricao,
+      preco: Number(preco),
+      precoOriginal: Number(precoOriginal),
+      collection,
+      fotoPrincipal,
+      fotos,
+      videos,
+      opcoesTamanho,
+      opcoesCor,
+      variantes,
+      highlights,
+      materiais,
+      guiaTamanho,
+      detalhesModelo,
+      instrucoesCuidado,
+      especificacoes,
+      tipo: tipo || "ROUPA"
     };
 
-    // ONLY generate handle if it's a NEW product AND handle is NOT provided
-    if (!id && !handle) {
-      data.handle = slugify(nome);
-    } else if (handle) {
-      // Allow manual handle update if explicitly provided
+    if (!data.handle) {
       data.handle = handle;
     }
 
