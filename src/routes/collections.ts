@@ -1,23 +1,25 @@
 import { Router } from "express";
 import prisma from "../lib/prisma";
-import { isAdmin } from "../middleware/auth"; // Importa o middleware
+import { isAdmin } from "../middleware/auth";
 import { slugify } from "../utils/slugify";
 
 const router = Router();
 
-// Listar todas as coleções (Público)
+// Listar coleções publicadas (Público)
 router.get("/", async (req, res) => {
-  console.log("Requisição GET /api/collections recebida.");
   try {
-    const collections = await prisma.collection.findMany({
-      orderBy: { createdAt: "desc" },
-      // Adicionar contagem de produtos por coleção se necessário
-      // include: {
-      //   _count: {
-      //     select: { products: true },
-      //   },
-      // },
-    });
+    let collections;
+    try {
+      collections = await (prisma.collection.findMany as any)({
+        where: { publicado: true },
+        orderBy: { createdAt: "desc" },
+      });
+    } catch {
+      // Fallback: Prisma Client ainda sem o campo publicado (aguardando restart)
+      collections = await prisma.collection.findMany({
+        orderBy: { createdAt: "desc" },
+      });
+    }
     return res.json(collections);
   } catch (error) {
     console.error("GET_COLLECTIONS_ERROR", error);
@@ -25,12 +27,45 @@ router.get("/", async (req, res) => {
   }
 });
 
+// Listar todas as coleções (Admin — inclui drafts)
+router.get("/raw", isAdmin, async (req, res) => {
+  try {
+    const collections = await prisma.collection.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+    return res.json(collections);
+  } catch (error) {
+    console.error("GET_COLLECTIONS_RAW_ERROR", error);
+    return res.status(500).json({ error: "Internal Error" });
+  }
+});
+
+// Buscar coleção por handle (Público — retorna 404 se draft)
+router.get("/handle/:handle", async (req, res) => {
+  try {
+    const collection = await prisma.collection.findFirst({
+      where: { handle: req.params.handle, publicado: true },
+    });
+    if (!collection) return res.status(404).json({ error: "Not found" });
+    return res.json(collection);
+  } catch (error) {
+    console.error("GET_COLLECTION_HANDLE_ERROR", error);
+    return res.status(500).json({ error: "Internal Error" });
+  }
+});
+
 // Upsert (criar ou atualizar) uma coleção
 router.post("/upsert", isAdmin, async (req, res) => {
   try {
-    const { id, name, description, image, productIds } = req.body;
+    const { id, name, description, image, productIds, publicado } = req.body;
     const slug = slugify(name);
-    const data = { name, handle: slug, description, image };
+    const data = {
+      name,
+      handle: slug,
+      description,
+      image,
+      publicado: publicado !== undefined ? Boolean(publicado) : undefined,
+    };
 
     let collection;
     if (id) {
@@ -40,32 +75,45 @@ router.post("/upsert", isAdmin, async (req, res) => {
       });
     } else {
       collection = await prisma.collection.create({
-        data,
+        data: { ...data, publicado: Boolean(publicado ?? true) },
       });
     }
 
-    // Se houver lista de produtos, atualizamos as associações
-    // Note: No modelo atual, Produto tem apenas o nome da coleção como string
     if (productIds && Array.isArray(productIds)) {
-      // 1. Remover a coleção de todos os produtos que a tinham (limpa o estado anterior)
       await prisma.produto.updateMany({
         where: { collection: name },
-        data: { collection: "" }
+        data: { collection: "" },
       });
-
-      // 2. Adicionar a coleção aos produtos selecionados
       await prisma.produto.updateMany({
         where: { id: { in: productIds } },
-        data: { collection: name }
+        data: { collection: name },
       });
     }
 
     return res.json(collection);
   } catch (error: any) {
     console.error("UPSERT_COLLECTION_ERROR", error);
-    if (error.code === 'P2002') { // Unique constraint violation
+    if (error.code === "P2002") {
       return res.status(409).json({ error: "Collection with this name or handle already exists." });
     }
+    return res.status(500).json({ error: "Internal Error" });
+  }
+});
+
+// Atualizar apenas o status draft/publicado da coleção
+router.post("/set-draft", isAdmin, async (req, res) => {
+  try {
+    const { id, publicado } = req.body;
+    if (!id) return res.status(400).json({ error: "Collection id required" });
+
+    const collection = await prisma.collection.update({
+      where: { id },
+      data: { publicado: Boolean(publicado) },
+    });
+
+    return res.json(collection);
+  } catch (error) {
+    console.error("SET_COLLECTION_DRAFT_ERROR", error);
     return res.status(500).json({ error: "Internal Error" });
   }
 });
@@ -89,7 +137,7 @@ router.post("/bulk-status", isAdmin, async (req, res) => {
 
     await prisma.produto.updateMany({
       where: { collection: collectionName },
-      data: { publicado }
+      data: { publicado },
     });
 
     return res.json({ success: true });

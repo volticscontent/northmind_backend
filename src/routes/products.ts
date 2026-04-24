@@ -35,6 +35,7 @@ const mapProduct = (p: any) => ({
 router.get("/", async (req, res) => {
   try {
     const products = await prisma.produto.findMany({
+      where: { publicado: true },
       orderBy: { createdAt: "desc" },
     });
     return res.json(products.map(mapProduct));
@@ -50,6 +51,7 @@ router.get("/handle/:handle", async (req, res) => {
     const p = await prisma.produto.findFirst({
       where: {
         handle: req.params.handle,
+        publicado: true
       },
     });
 
@@ -66,6 +68,7 @@ router.get("/collection/:collection", async (req, res) => {
   try {
     const products = await prisma.produto.findMany({
       where: {
+        publicado: true,
         collection: {
           equals: req.params.collection,
           mode: "insensitive",
